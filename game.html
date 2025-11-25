@@ -1,0 +1,2019 @@
+<!DOCTYPE html>
+<html lang="fr">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Le Maths Juste - Arcade</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <!-- Importation des polices Orbitron (futuriste) et Inter (lisible pour les maths) -->
+    <link
+        href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;700&family=Orbitron:wght@700;900&display=swap"
+        rel="stylesheet">
+
+    <!-- Ajout de MathJax pour le rendu LaTeX -->
+    <script src="https://polyfill.io/v3/polyfill.min.js?features=es6"></script>
+    <script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+
+    <style>
+        /* --- DESIGN INSPIRÉ DE KANJI DE GO --- */
+
+        body {
+            font-family: 'Orbitron', sans-serif;
+            background-color: #000000;
+            color: #f3f4f6;
+            overflow: hidden;
+            --bg-color-1: #1e3a8a;
+            --bg-color-2: #312e81;
+            --accent-color: #3b82f6;
+            --hud-bg: rgba(0, 0, 0, 0.4);
+            --text-color: #ffffff;
+            --input-bg: #1f2937;
+            --input-border: #3b82f6;
+        }
+
+        /* Thèmes pour les 4 phases */
+        body.theme-phase-1 {
+            --bg-color-1: #1e3a8a;
+            --bg-color-2: #312e81;
+            --accent-color: #3b82f6;
+            --input-border: #3b82f6;
+        }
+
+        body.theme-phase-2 {
+            --bg-color-1: #4a044e;
+            --bg-color-2: #701a75;
+            --accent-color: #a21caf;
+            --input-border: #a21caf;
+        }
+
+        body.theme-phase-3 {
+            --bg-color-1: #4c1d95;
+            --bg-color-2: #581c87;
+            --accent-color: #a855f7;
+            --input-border: #a855f7;
+        }
+
+        body.theme-phase-4 {
+            --bg-color-1: #991b1b;
+            --bg-color-2: #7f1d1d;
+            --accent-color: #ef4444;
+            --input-border: #ef4444;
+        }
+
+        /* --- FOND ANIMÉ "STARFIELD" --- */
+        #animated-bg {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: -1;
+            background: linear-gradient(135deg, var(--bg-color-1), var(--bg-color-2));
+            transition: background 0.5s ease-out;
+            overflow: hidden;
+            perspective: 600px;
+        }
+
+        #stars-small,
+        #stars-medium,
+        #stars-large {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            width: 1px;
+            height: 1px;
+            background: transparent;
+            animation-name: move-stars;
+            animation-iteration-count: infinite;
+            animation-timing-function: linear;
+        }
+
+        #stars-small {
+            animation-duration: 20s;
+        }
+
+        #stars-medium {
+            width: 2px;
+            height: 2px;
+            animation-duration: 40s;
+        }
+
+        #stars-large {
+            width: 3px;
+            height: 3px;
+            animation-duration: 60s;
+        }
+
+        @keyframes move-stars {
+            from {
+                transform: translateY(-1000px);
+            }
+
+            to {
+                transform: translateY(1000px);
+            }
+        }
+
+        body.boss-battle #stars-small {
+            animation-duration: 7s;
+        }
+
+        body.boss-battle #stars-medium {
+            animation-duration: 15s;
+        }
+
+        body.boss-battle #stars-large {
+            animation-duration: 25s;
+        }
+
+        .font-game {
+            font-family: 'Orbitron', sans-serif;
+            text-shadow: 0 0 5px var(--accent-color), 0 0 10px rgba(255, 255, 255, 0.3);
+            letter-spacing: 0.05em;
+        }
+
+        /* Police pour le texte des questions (MathJax) */
+        .font-question-text {
+            /* Changé de VT323 à Inter pour une meilleure lisibilité avec MathJax */
+            font-family: 'Inter', sans-serif;
+            font-size: 1.75rem; /* Ajusté pour les maths */
+            line-height: 1.6;
+            color: #f3f4f6;
+            white-space: pre-wrap;
+            text-align: center;
+        }
+
+        .game-screen {
+            display: none;
+            width: 100%;
+            height: 100vh;
+            position: absolute;
+            top: 0;
+            left: 0;
+            opacity: 0;
+            transform: scale(0.98);
+            transition: opacity 0.4s ease-out, transform 0.4s ease-out;
+        }
+
+        .visible {
+            display: flex;
+            opacity: 1;
+            transform: scale(1);
+        }
+
+        .game-screen.center-col {
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            background: transparent;
+        }
+
+        /* --- Écrans Menu & Sélection --- */
+        .menu-title {
+            font-family: 'Orbitron', sans-serif;
+            font-size: 4rem;
+            font-weight: 700;
+            color: white;
+            text-shadow: 2px 2px 10px rgba(0, 0, 0, 0.5);
+            border-bottom: 4px solid var(--accent-color);
+            padding-bottom: 0.5rem;
+        }
+
+        .menu-btn {
+            font-family: 'Orbitron', sans-serif;
+            font-size: 1.5rem;
+            font-weight: 700;
+            color: white;
+            background: #374151;
+            border: 2px solid #4b5563;
+            padding: 1rem 2.5rem;
+            border-radius: 8px;
+            min-width: 350px;
+            text-align: center;
+            transition: all 0.2s ease-out;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.3);
+            margin-bottom: 1rem;
+        }
+
+        .menu-btn:not(:disabled):hover {
+            background: #4b5563;
+            border-color: var(--accent-color);
+            transform: translateY(-3px) scale(1.02);
+            box-shadow: 0 8px 20px rgba(0, 0, 0, 0.4);
+        }
+
+        .menu-btn:not(:disabled):active {
+            transform: translateY(0px) scale(0.98);
+        }
+
+        .menu-btn.back-btn {
+            margin-top: 1rem;
+            background: transparent;
+            border-color: #4b5563;
+            min-width: 0;
+            color: #9ca3af;
+            font-size: 1rem;
+        }
+
+        .menu-btn.back-btn:hover {
+            background: #1f2937;
+            color: white;
+        }
+
+        .selection-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 1rem;
+            width: 100%;
+            max-width: 750px;
+        }
+
+        .selection-grid .menu-btn {
+            min-width: 0;
+            margin-bottom: 0;
+        }
+
+        @media (min-width: 768px) {
+            .selection-grid {
+                grid-template-columns: repeat(3, 1fr);
+            }
+        }
+
+        /* --- Monde du Jeu --- */
+        #game-world {
+            flex-direction: column;
+            justify-content: space-between;
+            align-items: center;
+            padding: 1rem;
+            background: transparent;
+        }
+
+        /* --- 1. HUD (Haut) --- */
+        #game-hud {
+            width: 100%;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            background: var(--hud-bg);
+            padding: 0.75rem 1.5rem;
+            border-radius: 8px;
+            border: 1px solid var(--accent-color);
+            box-shadow: 0 0 15px var(--accent-color) inset;
+        }
+
+        .hud-item {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+        }
+
+        .hud-label {
+            font-family: 'Orbitron', sans-serif;
+            font-size: 1rem;
+            font-weight: 700;
+            color: var(--accent-color);
+        }
+
+        .hud-value {
+            font-family: 'Orbitron', sans-serif;
+            font-size: 1.5rem;
+            font-weight: 700;
+            color: var(--text-color);
+        }
+
+        #hud-question-count {
+            min-width: 80px;
+            text-align: right;
+        }
+
+        /* --- 2. Arène de Jeu (Milieu) --- */
+        #game-arena {
+            flex-grow: 1;
+            width: 100%;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            position: relative;
+        }
+
+        #question-container {
+            background: rgba(17, 24, 39, 0.8);
+            border: 2px solid var(--accent-color);
+            border-radius: 12px;
+            padding: 2rem;
+            max-width: 900px;
+            width: 90%;
+            min-height: 250px;
+            color: var(--text-color);
+            box-shadow: 0 0 20px var(--accent-color), 0 0 30px rgba(0, 0, 0, 0.5) inset;
+
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            gap: 1.5rem;
+            text-align: center; /* Centré pour les maths */
+
+            transform: scale(0.5);
+            opacity: 0;
+            transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+        }
+
+        #question-container.visible {
+            transform: scale(1);
+            opacity: 1;
+        }
+
+        #question-content {
+            width: 100%;
+        }
+
+        /* Conteneur pour les options de réponse */
+        #answer-options-container {
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 1rem;
+            width: 100%;
+        }
+        
+        @media (min-width: 768px) {
+            #answer-options-container {
+                grid-template-columns: 1fr 1fr; /* 2 colonnes sur desktop */
+            }
+        }
+
+        .answer-btn {
+            font-family: 'Inter', sans-serif; /* Police Inter pour les maths */
+            font-weight: 500;
+            background: #374151;
+            border: 2px solid #4b5563;
+            color: white;
+            font-size: 1.25rem; /* Taille de police ajustée */
+            padding: 1.5rem;
+            border-radius: 8px;
+            transition: all 0.2s ease;
+            text-align: center;
+            min-height: 80px; /* Hauteur minimale pour l'alignement */
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .answer-btn:not(:disabled):hover {
+            background: #4b5563;
+            border-color: var(--accent-color);
+        }
+
+        .answer-btn:not(:disabled):active {
+            transform: scale(0.97);
+        }
+
+        .answer-btn.correct {
+            background: #166534;
+            border-color: #22c55e;
+        }
+
+        .answer-btn.wrong {
+            background: #991b1b;
+            border-color: #ef4444;
+            animation: shake 0.5s ease-in-out;
+        }
+
+        .answer-btn:disabled {
+            opacity: 0.7;
+        }
+
+        /* --- 3. Barre de Saisie (Bas) --- */
+        #input-container {
+            width: 100%;
+            display: flex;
+            justify-content: space-between; /* Modifié pour espacer Joker et Quitter */
+            align-items: center;
+            gap: 1rem;
+            padding: 1rem;
+            position: relative;
+            height: 120px;
+            padding-left: 2rem;
+            padding-right: 2rem;
+        }
+
+        /* Boutons d'action (coins) */
+        .action-btn {
+            font-family: 'Orbitron', sans-serif;
+            font-weight: 700;
+            color: white;
+            background: #374151;
+            border: 2px solid #4b5563;
+            border-radius: 8px;
+            padding: 0.75rem 1rem;
+            transition: all 0.2s ease;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            min-width: 120px;
+        }
+
+        .action-btn:not(:disabled):hover {
+            background: #4b5563;
+            border-color: var(--accent-color);
+        }
+
+        .action-btn:not(:disabled):active {
+            transform: scale(0.97);
+        }
+
+        .action-btn:disabled {
+            opacity: 0.4;
+            cursor: not-allowed;
+        }
+
+        #joker-button {
+            border-color: #f59e0b;
+        }
+
+        #joker-button:not(:disabled):hover {
+            border-color: #fcd34d;
+        }
+
+        #joker-button:disabled {
+            border-color: #7f1d1d;
+        }
+        
+        #quit-button {
+            border-color: #6b7280; /* gray-500 */
+        }
+        #quit-button:not(:disabled):hover {
+            border-color: #ef4444; /* red-500 */
+        }
+
+
+        /* --- 4. Overlays et Popups --- */
+
+        #result-box {
+            position: absolute;
+            bottom: 1rem;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 90%;
+            max-width: 900px;
+            background: rgba(10, 10, 20, 0.9);
+            border: 2px solid;
+            border-radius: 12px;
+            padding: 1.5rem;
+            box-shadow: 0 0 20px rgba(0, 0, 0, 0.7);
+
+            display: none;
+            opacity: 0;
+            transition: opacity 0.3s ease-out;
+        }
+
+        #result-box.visible {
+            display: block;
+            opacity: 1;
+        }
+
+        #result-box.correct {
+            border-color: #22c55e;
+        }
+
+        #result-box.wrong {
+            border-color: #ef4444;
+        }
+
+        #result-box.pass {
+            border-color: #f59e0b;
+        }
+
+        #result-title {
+            font-family: 'Orbitron', sans-serif;
+            font-size: 1.5rem;
+            font-weight: 700;
+        }
+        
+        #result-answer {
+             font-family: 'Inter', sans-serif;
+             font-size: 1.25rem;
+             color: #d1d5db;
+             margin-top: 0.5rem;
+        }
+
+        /* Overlay de Transition de Niveau / BOSS */
+        #level-transition-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.85);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 100;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.5s ease-out;
+        }
+
+        #level-transition-overlay.visible {
+            opacity: 1;
+            pointer-events: all;
+        }
+
+        #level-transition-text {
+            font-family: 'Orbitron', sans-serif;
+            font-size: 6rem;
+            font-weight: 900;
+            color: white;
+            text-shadow: 0 0 10px white, 0 0 20px var(--accent-color), 0 0 30px var(--accent-color);
+            transform: scale(0.5);
+            opacity: 0;
+            transition: all 0.5s ease-out;
+            animation: none;
+        }
+
+        #level-transition-overlay.visible #level-transition-text {
+            transform: scale(1);
+            opacity: 1;
+        }
+
+        #level-transition-text.boss {
+            color: #ef4444;
+            text-shadow: 0 0 10px #f00, 0 0 20px #f00, 0 0 30px #f00, 0 0 50px #fff;
+            animation: pulse-boss 1s infinite ease-in-out;
+        }
+
+        @keyframes pulse-boss {
+            0% {
+                transform: scale(1);
+                opacity: 1;
+            }
+
+            50% {
+                transform: scale(1.05);
+                opacity: 0.9;
+            }
+
+            100% {
+                transform: scale(1);
+                opacity: 1;
+            }
+        }
+
+        #feedback-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            opacity: 0;
+            pointer-events: none;
+            z-index: 90;
+        }
+
+        #feedback-overlay.flash-correct {
+            animation: flash-correct 0.4s ease-out;
+        }
+
+        #feedback-overlay.flash-wrong {
+            animation: flash-wrong 0.4s ease-out;
+        }
+
+        @keyframes flash-correct {
+            0% {
+                background: rgba(255, 255, 255, 0.8);
+                opacity: 1;
+            }
+
+            100% {
+                background: rgba(255, 255, 255, 0);
+                opacity: 0;
+            }
+        }
+
+        @keyframes flash-wrong {
+            0% {
+                background: rgba(239, 68, 68, 0.7);
+                opacity: 1;
+            }
+
+            50% {
+                background: rgba(239, 68, 68, 0.7);
+                opacity: 1;
+            }
+
+            100% {
+                background: rgba(239, 68, 68, 0);
+                opacity: 0;
+            }
+        }
+
+        @keyframes shake {
+
+            0%,
+            100% {
+                transform: translateX(0);
+            }
+
+            10%,
+            30%,
+            50%,
+            70%,
+            90% {
+                transform: translateX(-8px);
+            }
+
+            20%,
+            40%,
+            60%,
+            80% {
+                transform: translateX(8px);
+            }
+        }
+
+        /* NOUVEAUX STYLES pour la saisie de texte et le clavier mathématique */
+        #text-input-container {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            width: 100%;
+            max-width: 600px; /* Augmenté pour le clavier */
+        }
+        
+        #answer-input {
+            font-family: 'Inter', sans-serif;
+            background-color: var(--input-bg);
+            border: 2px solid var(--input-border);
+            color: var(--text-color);
+            font-size: 1.75rem;
+            text-align: center;
+            border-radius: 8px;
+            padding: 0.75rem;
+            width: 100%;
+            transition: all 0.2s ease-out;
+            box-shadow: 0 0 10px var(--input-border);
+        }
+        
+        #answer-input:focus {
+            outline: none;
+            box-shadow: 0 0 20px var(--input-border);
+        }
+        
+        #math-keyboard {
+            display: flex;
+            justify-content: center;
+            gap: 0.5rem;
+            margin-top: 0.75rem;
+        }
+        
+        .math-key-btn {
+            font-family: 'Inter', sans-serif;
+            font-weight: 600;
+            font-size: 1.25rem;
+            background-color: #374151; /* gray-700 */
+            color: white;
+            border: 2px solid #4b5563; /* gray-600 */
+            border-radius: 6px;
+            width: 44px;
+            height: 44px;
+            transition: all 0.1s ease-out;
+        }
+        
+        .math-key-btn:hover {
+            background-color: #4b5563; /* gray-600 */
+            border-color: var(--accent-color);
+        }
+        
+        .math-key-btn:active {
+            transform: scale(0.95);
+        }
+
+    </style>
+</head>
+
+<body>
+    <!-- Fond animé "Starfield" -->
+    <div id="animated-bg">
+        <div id="stars-small"></div>
+        <div id="stars-medium"></div>
+        <div id="stars-large"></div>
+    </div>
+
+    <!-- Écran 1: Menu Principal -->
+    <section id="menu-screen" class="game-screen center-col visible">
+        <h1 class="menu-title">Le Maths Juste</h1>
+        <h2 class="font-game text-2xl text-gray-400 mb-8 tracking-widest">ÉDITION ARCADE</h2>
+
+        <button id="campaign-btn" class="menu-btn">
+            Campagne
+        </button>
+        <button id="training-btn" class="menu-btn">
+            Mode Entraînement
+        </button>
+    </section>
+
+    <!-- Écran 2: Sélection Palier -->
+    <section id="palier-select-screen" class="game-screen center-col">
+        <h2 class="font-game text-4xl text-white mb-8">Mode Campagne</h2>
+        <div class="selection-grid !grid-cols-1 !max-w-md">
+            <button class="menu-btn !min-w-0" data-palier="Normal">Normal <span class="text-sm block text-gray-400">Niv
+                    1-4</span></button>
+            <button class="menu-btn !min-w-0" data-palier="Hard">Hard <span class="text-sm block text-gray-400">Niv
+                    2-5</span></button>
+            <button class="menu-btn !min-w-0" data-palier="Hardcore">Hardcore <span
+                    class="text-sm block text-gray-400">Niv 3-6</span></button>
+            <button class="menu-btn !min-w-0" data-palier="Hell">Hell <span class="text-sm block text-gray-400">Niv
+                    4-7</span></button>
+            <button class="menu-btn !min-w-0" data-palier="Void">Void <span class="text-sm block text-gray-400">Niv
+                    7-8</span></button>
+        </div>
+        <button class="menu-btn back-btn" onclick="goToMenu()">
+            Retour
+        </button>
+    </section>
+
+    <!-- Écran 3: Sélection Nombre Questions -->
+    <section id="question-count-screen" class="game-screen center-col">
+        <h2 id="question-count-title" class="font-game text-4xl text-white mb-8">Palier Normal</h2>
+        <div class="selection-grid !grid-cols-1 !max-w-md">
+            <button class="menu-btn !min-w-0" data-count="7">7 Questions</button>
+            <button class="menu-btn !min-w-0" data-count="10">10 Questions</button>
+            <button class="menu-btn !min-w-0" data-count="16">16 Questions</button>
+        </div>
+        <button class="menu-btn back-btn" onclick="goToPalierSelect()">
+            Retour
+        </button>
+    </section>
+
+    <!-- Écran 4: Sélection Entraînement -->
+    <section id="training-select-screen" class="game-screen center-col">
+        <h2 class="font-game text-4xl text-white mb-8">Mode Entraînement</h2>
+        <div class="selection-grid !grid-cols-2 md:!grid-cols-4 !max-w-4xl">
+            <button data-level="1" class="menu-btn !min-w-0" style="border-color: #4ade80;">Niveau 1</button>
+            <button data-level="2" class="menu-btn !min-w-0" style="border-color: #4ade80;">Niveau 2</button>
+            <button data-level="3" class="menu-btn !min-w-0" style="border-color: #60a5fa;">Niveau 3</button>
+            <button data-level="4" class="menu-btn !min-w-0" style="border-color: #60a5fa;">Niveau 4</button>
+            <button data-level="5" class="menu-btn !min-w-0" style="border-color: #facc15;">Niveau 5</button>
+            <button data-level="6" class="menu-btn !min-w-0" style="border-color: #facc15;">Niveau 6</button>
+            <button data-level="7" class="menu-btn !min-w-0" style="border-color: #f87171;">Niveau 7</button>
+            <button data-level="8" class="menu-btn !min-w-0" style="border-color: #f87171;">Niveau 8</button>
+        </div>
+        <button class="menu-btn back-btn" onclick="goToMenu()">
+            Retour
+        </button>
+    </section>
+
+    <!-- Écran 5: Le Jeu -->
+    <section id="game-world" class="game-screen">
+
+        <!-- 1. HUD (Haut) -->
+        <header id="game-hud">
+            <div class="hud-item">
+                <span id="hud-level-label" class="hud-label">PALIER</span>
+                <span id="hud-level-value" class="hud-value font-game">NORMAL</span>
+            </div>
+            <div class="hud-item">
+                <span id="hud-question-count" class="hud-value font-game">1/7</span>
+            </div>
+            <div class="hud-item">
+                <span class="hud-label">SCORE</span>
+                <span id="hud-score-value" class="hud-value font-game">0</span>
+            </div>
+            <div class="hud-item">
+                <span class="hud-label">VIES</span>
+                <span id="hud-lives-value" class="hud-value text-2xl">❤️❤️❤️</span>
+            </div>
+            <div class="hud-item">
+                <span class="hud-label">TEMPS</span>
+                <span id="hud-timer-value" class="hud-value font-game">30</span>
+            </div>
+        </header>
+
+        <!-- 2. Arène (Milieu) -->
+        <main id="game-arena">
+            <div id="question-container">
+                <!-- Le contenu (question) sera injecté ici -->
+                <div id="question-content" class="font-question-text">
+                </div>
+                <!-- Les boutons de réponse QCM seront injectés ici -->
+                <div id="answer-options-container">
+                </div>
+            </div>
+        </main>
+
+        <!-- 3. Saisie (Bas) -->
+        <footer id="input-container">
+            <button id="joker-button" class="action-btn">
+                <span>JOKER</span>
+                <span id="joker-status" class="font-game text-xl text-amber-400">PRÊT</span>
+            </button>
+            
+            <!-- NOUVELLE SECTION DE SAISIE (cachée par défaut) -->
+            <div id="text-input-container" class="hidden">
+                 <input type="text" id="answer-input" placeholder="Tapez votre réponse...">
+                 <!-- Clavier Math (simple) -->
+                 <div id="math-keyboard">
+                    <button class="math-key-btn">π</button>
+                    <button class="math-key-btn">√</button>
+                    <button class="math-key-btn">²</button>
+                    <button class="math-key-btn">Δ</button>
+                    <button class="math-key-btn">/</button>
+                    <button class="math-key-btn">∞</button>
+                 </div>
+            </div>
+            
+            <button id="quit-button" class="action-btn" onclick="returnToMenu()">
+                <span>QUITTER</span>
+                <span class="font-game text-xl text-gray-400">X</span>
+            </button>
+        </footer>
+
+        <!-- 4. Overlays (par dessus tout) -->
+        <div id="result-box">
+            <h3 id="result-title" class="font-game"></h3>
+            <p id="result-answer"></p>
+        </div>
+        <div id="feedback-overlay"></div>
+        <div id="level-transition-overlay">
+            <h2 id="level-transition-text" class="font-game"></h2>
+        </div>
+
+    </section>
+
+    <!-- Écran 6: Game Over -->
+    <section id="game-over-screen" class="game-screen center-col gap-8"
+        style="background: linear-gradient(135deg, #4b0000, #000000);">
+        <h2 class="font-game text-8xl text-red-500" style="text-shadow: 0 0 10px #f00, 0 0 20px #f00;">GAME OVER</h2>
+        <div class="text-center">
+            <span class="text-2xl text-gray-400 block font-game">Score Final</span>
+            <span id="final-score-display" class="font-game text-7xl text-white">0</span>
+        </div>
+        <div id="final-score-summary"
+            class="text-left w-full max-w-2xl max-h-48 overflow-y-auto bg-gray-900 p-4 rounded-lg border border-gray-700">
+            <h3 class="text-lg font-semibold text-white mb-2 font-game">Bilan des questions :</h3>
+        </div>
+        <button id="game-over-menu-btn" class="menu-btn">
+            Menu Principal
+        </button>
+    </section>
+
+    <!-- Écran 7: Victoire -->
+    <section id="victory-screen" class="game-screen center-col gap-8"
+        style="background: linear-gradient(135deg, #065f46, #047857);">
+        <h2 class="font-game text-8xl text-green-400" style="text-shadow: 0 0 10px #0f0, 0 0 20px #0f0;">VICTOIRE !</h2>
+        <div class="text-center">
+            <span class="text-2xl text-gray-400 block font-game">Score Final</span>
+            <span id="final-score-victory-display" class="font-game text-7xl text-white">0</span>
+        </div>
+        <div id="victory-score-summary"
+            class="text-left w-full max-w-2xl max-h-48 overflow-y-auto bg-gray-900 p-4 rounded-lg border border-gray-700">
+            <h3 class="text-lg font-semibold text-white mb-2 font-game">Bilan des questions :</h3>
+        </div>
+        <button id="victory-menu-btn" class="menu-btn">
+            Menu Principal
+        </button>
+    </section>
+
+
+    <!-- Logique du jeu -->
+    <script type="module">
+        // --- Base de données des questions de Maths ---
+        // Remplace wordList et expressionList
+        // IMPORTANT: Tous les backslashs \ en LaTeX doivent être échappés en \\
+        const questionList = [
+            // NIVEAU 1: Automatismes (Fractions, Heures)
+            { level: 1, question: "Calculez $ \\frac{1}{2} + \\frac{1}{4} $", type: 'qcm', options: ["$ \\frac{2}{6} $", "$ \\frac{1}{8} $", "$ \\frac{3}{4} $", "$ \\frac{2}{4} $"], correctAnswer: "$ \\frac{3}{4} $" },
+            { level: 1, question: "Combien font 1,5 heures en minutes ?", type: 'input', options: [], correctAnswer: "90" },
+            { level: 1, question: "Calculez $ \\frac{2}{3} \\times \\frac{3}{5} $", type: 'qcm', options: ["$ \\frac{6}{15} $", "$ \\frac{2}{5} $", "$ \\frac{5}{8} $", "$ \\frac{6}{8} $"], correctAnswer: "$ \\frac{2}{5} $" },
+            { level: 1, question: "Combien font 45 minutes en heures décimales ?", type: 'input', options: [], correctAnswer: "0.75" }, // Acceptera 0.75 ou 0,75
+            { level: 1, question: "Calculez $ 2 - \\frac{1}{3} $", type: 'qcm', options: ["$ \\frac{1}{3} $", "$ \\frac{5}{3} $", "$ \\frac{6}{3} $", "$ 1 $"], correctAnswer: "$ \\frac{5}{3} $" },
+
+            // NIVEAU 2: Automatismes (Puissances, Identités, Inéquations simples)
+            { level: 2, question: "Simplifiez $ x^2 \\times x^3 $", type: 'input', options: [], correctAnswer: "x^5" }, // Simple expression
+            { level: 2, question: "Développez $ (x + 2)^2 $", type: 'qcm', options: ["$ x^2 + 4 $", "$ x^2 + 2x + 4 $", "$ x^2 + 4x + 4 $", "$ 2x + 4 $"], correctAnswer: "$ x^2 + 4x + 4 $" },
+            { level: 2, question: "Quelle est la solution de $ 2x > 4 $ ?", type: 'qcm', options: ["$ x < 2 $", "$ x > 2 $", "$ x = 2 $", "$ x > 8 $"], correctAnswer: "$ x > 2 $" },
+            { level: 2, question: "Simplifiez $ \\frac{a^7}{a^3} $", type: 'input', options: [], correctAnswer: "a^4" },
+            { level: 2, question: "Développez $ (x - 1)(x + 1) $", type: 'qcm', options: ["$ x^2 - 1 $", "$ x^2 + 1 $", "$ x^2 - 2x + 1 $", "$ x^2 + x - 1 $"], correctAnswer: "$ x^2 - 1 $" },
+            {
+                level: 2,
+                question: "Quelle inéquation est représentée sur cet axe ?",
+                type: 'qcm',
+                // SVG d'une ligne numérique montrant x > 2 (cercle ouvert à 2, ligne vers la droite)
+                question: `Quelle inéquation est représentée sur cet axe ?
+                <svg viewBox="0 0 100 20" class="w-full h-24 mt-4">
+                    <!-- Axe principal -->
+                    <line x1="5" y1="10" x2="95" y2="10" stroke="#fff" stroke-width="1"/>
+                    <!-- Flèches -->
+                    <polyline points="95 10, 90 7, 95 10, 90 13" stroke="#fff" stroke-width="1" fill="none"/>
+                    <!-- Graduations -->
+                    <g fill="#fff" font-size="5px" font-family="Inter">
+                        <line x1="25" y1="8" x2="25" y2="12" stroke="#fff" stroke-width="1"/>
+                        <text x="24" y="18">0</text>
+                        <line x1="45" y1="8" x2="45" y2="12" stroke="#fff" stroke-width="1"/>
+                        <text x="44" y="18">1</text>
+                        <line x1="65" y1="8" x2="65" y2="12" stroke="#fff" stroke-width="1"/>
+                        <text x="64" y="18">2</text>
+                        <line x1="85" y1="8" x2="85" y2="12" stroke="#fff" stroke-width="1"/>
+                        <text x="84" y="18">3</text>
+                    </g>
+                    <!-- Solution (x > 2) -->
+                    <line x1="65" y1="10" x2="95" y2="10" stroke="#3b82f6" stroke-width="2.5"/>
+                    <!-- Cercle ouvert à 2 -->
+                    <circle cx="65" cy="10" r="1.5" stroke="#3b82f6" stroke-width="1" fill="#000000"/>
+                </svg>`,
+                options: ["$ x > 2 $", "$ x < 2 $", "$ x \\geq 2 $", "$ x \\leq 2 $"],
+                correctAnswer: "$ x > 2 $"
+            },
+
+            // NIVEAU 3: Automatismes (Pourcentages, Moyenne, Pente)
+            { level: 3, question: "Un article à 50€ augmente de 10%. Quel est son nouveau prix ?", type: 'input', options: [], correctAnswer: "55" }, // Acceptera 55 ou 55€
+            { level: 3, question: "Quel est le coefficient multiplicateur pour une baisse de 20% ?", type: 'input', options: [], correctAnswer: "0.8" }, // Acceptera 0.8 ou 0,8
+            { level: 3, question: "La moyenne de 10, 12 et $x$ est 11. Que vaut $x$ ?", type: 'input', options: [], correctAnswer: "11" }, // (10+12+x)/3 = 11 => 22+x = 33 => x=11
+            { level: 3, question: "L'ordre de grandeur de $ 48 \\times 103 $ est :", type: 'qcm', options: ["500", "4800", "5000", "48000"], correctAnswer: "5000" },
+            {
+                level: 3,
+                question: `Déterminer le coefficient directeur de la droite (AB) :
+                <svg viewBox="0 0 100 100" class="w-64 h-64 bg-gray-800 rounded-lg mt-4">
+                    <!-- Grille -->
+                    <path d="M 10 0 L 10 100 M 30 0 L 30 100 M 50 0 L 50 100 M 70 0 L 70 100 M 90 0 L 90 100" stroke="#4b5563" stroke-width="0.5"/>
+                    <path d="M 0 10 L 100 10 M 0 30 L 100 30 M 0 50 L 100 50 M 0 70 L 100 70 M 0 90 L 100 90" stroke="#4b5563" stroke-width="0.5"/>
+                    <!-- Axes -->
+                svg>`,
+                type: 'qcm', options: ["1", "-1", "2", "-0,5"],
+                correctAnswer: "1"
+            }, // Pente = (y2-y1)/(x2-x1) = (2 - (-2)) / (2 - (-2)) = 4/4 = 1
+            // NOUVELLE QUESTION (demandée par l'utilisateur)
+            {
+                level: 3,
+                question: "Calculez $ \\frac{1}{3 - \\frac{1}{7}} $",
+                type: 'qcm',
+                options: ["$ \\frac{7}{20} $", "$ \\frac{20}{7} $", "$ \\frac{1}{2} $", "$ \\frac{7}{2} $"],
+                correctAnswer: "$ \\frac{7}{20} $"
+            },
+
+            // NIVEAU 4: Second Degré (Discriminant, Racines)
+            { level: 4, question: "Le discriminant $ \\Delta $ de $ x^2 + 3x + 2 = 0 $ est :", type: 'input', options: [], correctAnswer: "1" }, // b^2 - 4ac = 3^2 - 4(1)(2) = 9 - 8 = 1
+            { level: 4, question: "Les racines de $ x^2 - 1 = 0 $ sont :", type: 'qcm', options: ["1", "1 et -1", "0", "Pas de racines"], correctAnswer: "1 et -1" },
+            { level: 4, question: "Si $ \\Delta < 0 $, l'équation $ ax^2 + bx + c = 0 $ a :", type: 'qcm', options: ["0 solution réelle", "1 solution réelle", "2 solutions réelles", "3 solutions réelles"], correctAnswer: "0 solution réelle" },
+            { level: 4, question: "Quelle est la forme canonique de $ f(x) = x^2 + 4x + 5 $ ?", type: 'qcm', options: ["$ (x+2)^2 + 1 $", "$ (x-2)^2 + 1 $", "$ (x+2)^2 + 5 $", "$ (x+4)^2 + 5 $"], correctAnswer: "$ (x+2)^2 + 1 $" }, // ANCIENNE QUESTION CORRIGÉE
+            { level: 4, question: "Le sommet de la parabole $ y = 2(x-3)^2 + 1 $ est :", type: 'qcm', options: ["(3, 1)", "(-3, 1)", "(3, -1)", "(2, 1)"], correctAnswer: "(3, 1)" },
+
+            // NIVEAU 5: Second Degré (Forme canonique, Résolution)
+            { level: 5, question: "La forme canonique de $ f(x) = 2x^2 - 12x + 19 $ est :", type: 'qcm', options: ["$ 2(x-3)^2 + 1 $", "$ 2(x+3)^2 + 1 $", "$ (x-3)^2 + 1 $", "$ 2(x-6)^2 + 19 $"], correctAnswer: "$ 2(x-3)^2 + 1 $" }, // QUESTION AMÉLIORÉE
+            { level: 5, question: "Les solutions de $ x^2 - 5x + 6 = 0 $ sont :", type: 'qcm', options: ["2 et 3", "-2 et -3", "1 et 6", "Pas de solution"], correctAnswer: "2 et 3" }, // Delta = 25 - 24 = 1. x = (5 +/- 1)/2
+            { level: 5, question: "Si $ \\Delta = 0 $, l'équation a :", type: 'qcm', options: ["1 solution double", "0 solution", "2 solutions", "Infinies solutions"], correctAnswer: "1 solution double" },
+            { level: 5, question: "Le polynôme $ x^2 + x + 1 $ a un discriminant :", type: 'qcm', options: ["$ \\Delta > 0 $", "$ \\Delta < 0 $", "$ \\Delta = 0 $", "$ \\Delta = 1 $"], correctAnswer: "$ \\Delta < 0 $" }, // Delta = 1 - 4 = -3
+
+            // NIVEAU 6: Trigonométrie (Cercle, Conversion, Valeurs)
+            { level: 6, question: "Convertir $ 60° $ en radians :", type: 'qcm', options: ["$ \\frac{\\pi}{3} $", "$ \\frac{\\pi}{2} $", "$ \\frac{\\pi}{4} $", "$ \\pi $"], correctAnswer: "$ \\frac{\\pi}{3} $" },
+            { level: 6, question: "Quelle est la valeur de $ \\sin(\\frac{\\pi}{2}) $ ?", type: 'input', options: [], correctAnswer: "1" },
+            { level: 6, question: "Sur le cercle trigonométrique, $ \\pi $ radians correspond à :", type: 'input', options: [], correctAnswer: "180" }, // Acceptera 180 ou 180°
+            { level: 6, question: "Quelle est la valeur de $ \\cos(\\pi) $ ?", type: 'input', options: [], correctAnswer: "-1" },
+            { level: 6, question: "Quelle est la valeur de $ \\tan(\\frac{\\pi}{4}) $ ?", type: 'input', options: [], correctAnswer: "1" },
+
+            // NIVEAU 7: Trigonométrie (Valeurs complexes, mod 2pi)
+            { level: 7, question: "Quelle est la valeur de $ \\cos(\\frac{2\\pi}{3}) $ ?", type: 'qcm', options: ["$ \\frac{1}{2} $", "$ -\\frac{1}{2} $", "$ \\frac{\\sqrt{3}}{2} $", "$ -\\frac{\\sqrt{3}}{2} $"], correctAnswer: "$ -\\frac{1}{2} $" },
+            { level: 7, question: "Quelle est la valeur de $ \\sin(\\frac{5\\pi}{4}) $ ?", type: 'qcm', options: ["$ \\frac{\\sqrt{2}}{2} $", "$ -\\frac{\\sqrt{2}}{2} $", "$ \\frac{1}{2} $", "$ -\\frac{1}{2} $"], correctAnswer: "$ -\\frac{\\sqrt{2}}{2} $" },
+            { level: 7, question: "La mesure principale de $ \\frac{9\\pi}{4} $ est :", type: 'qcm', options: ["$ \\frac{\\pi}{4} $", "$ \\frac{3\\pi}{4} $", "$ \\frac{5\\pi}{4} $", "$ -\\frac{\\pi}{4} $"], correctAnswer: "$ \\frac{\\pi}{4} $" }, // 9pi/4 = 8pi/4 + pi/4 = 2pi + pi/4
+            { level: 7, question: "La mesure principale de $ \\frac{10\\pi}{3} $ est :", type: 'qcm', options: ["$ \\frac{\\pi}{3} $", "$ \\frac{2\\pi}{3} $", "$ \\frac{4\\pi}{3} $", "$ -\\frac{2\\pi}{3} $"], correctAnswer: "$ -\\frac{2\\pi}{3} $" }, // (10-12)pi/3 = -2pi/3
+
+            // NIVEAU 8: Probabilités conditionnelles
+            { level: 8, question: "Formule de $ P_A(B) $ ?", type: 'qcm', options: ["$ \\frac{P(A \\cap B)}{P(A)} $", "$ \\frac{P(A \\cap B)}{P(B)} $", "$ P(A) \\times P(B) $", "$ P(A) + P(B) $"], correctAnswer: "$ \\frac{P(A \\cap B)}{P(A)} $" },
+            { level: 8, question: "Si $P(A) = 0.6$ et $P(A \\cap B) = 0.3$, que vaut $P_A(B)$ ?", type: 'input', options: [], correctAnswer: "0.5" }, // 0.3 / 0.6 = 0.5
+            { level: 8, question: "Si A et B sont indépendants, $ P(A \\cap B) = $ ?", type: 'qcm', options: ["$ P(A) \\times P(B) $", "$ P(A) + P(B) $", "$ P_A(B) $", "0"], correctAnswer: "$ P(A) \\times P(B) $" },
+            { level: 8, question: "La somme des probabilités des branches issues d'un même nœud dans un arbre pondéré vaut :", type: 'input', options: [], correctAnswer: "1" },
+            { level: 8, question: "La formule des probabilités totales utilise :", type: 'qcm', options: ["Des intersections", "Des partitions", "Des discriminants", "Des cosinus"], correctAnswer: "Des partitions" },
+            {
+                level: 8,
+                question: "D'après l'arbre ci-dessous, que vaut $ P(B) $ (probabilités totales) ?",
+                type: 'qcm',
+                // SVG d'un arbre de probabilité
+                question: `D'après l'arbre ci-dessous, que vaut $ P(B) $ ?
+                <svg viewBox="-5 0 110 65" class="w-full h-64 mt-4">
+                    <g stroke="#fff" stroke-width="1" fill="#fff" font-size="5px" font-family="Inter" font-weight="400">
+                        <!-- Nœud racine -->
+                        <circle cx="0" cy="30" r="1" fill="#fff"/>
+                        
+                        <!-- Branche A -->
+                        <line x1="0" y1="30" x2="30" y2="15"/>
+                        <text x="15" y="20" fill="#a5f3fc">0.6</text>
+                        <text x="32" y="15">A</text>
+                        
+                        <!-- Branche A barre -->
+                        <line x1="0" y1="30" x2="30" y2="45"/>
+                        <text x="15" y="42" fill="#a5f3fc">0.4</text>
+                        <text x="32" y="45">$\\\\bar{A}$</text>
+                        
+                        <!-- Branches issues de A -->
+                        <line x1="30" y1="15" x2="60" y2="5"/>
+                        <text x="45" y="8" fill="#fcd34d">0.3</text>
+                        <text x="62" y="5">B</text>
+                        
+                        <line x1="30" y1="15" x2="60" y2="25"/>
+                        <text x="45" y="22" fill="#fcd34d">0.7</text>
+                        <text x="62" y="25">$\\\\bar{B}$</text>
+                        
+                        <!-- Branches issues de A barre -->
+                        <line x1="30" y1="45" x2="60" y2="35"/>
+                        <text x="45" y="38" fill="#fcd34d">0.5</text>
+                        <text x="62" y="35">B</text>
+                        
+                        <line x1="30" y1="45" x2="60" y2="55"/>
+                        <text x="45" y="52" fill="#fcd34d">0.5</text>
+                        <text x="62" y="55">$\\\\bar{B}$</text>
+
+                        <!-- Feuilles (résultats) -->
+                        <text x="70" y="5" fill="#22c55e">$P(A \\cap B) = 0.18$</text>
+                        <text x="70" y="35" fill="#22c55e">$P(\\\\bar{A} \\cap B) = 0.20$</text>
+                    </g>
+                </svg>`,
+                options: ["0.38", "0.18", "0.5", "0.8"],
+                correctAnswer: "0.38" // P(B) = P(A n B) + P(A_bar n B) = 0.18 + 0.20 = 0.38
+            }
+        ];
+
+
+        // --- Configuration des Paliers ---
+        const PALIER_CONFIG = {
+            "Normal": { // Niv 1-4
+                7: { 1: 2, 2: 2, 3: 2, 4: 1 },
+                10: { 1: 3, 2: 3, 3: 2, 4: 2 },
+                16: { 1: 4, 2: 4, 3: 4, 4: 4 }
+            },
+            "Hard": { // Niv 2-5
+                7: { 2: 2, 3: 2, 4: 2, 5: 1 },
+                10: { 2: 3, 3: 3, 4: 3, 5: 1 },
+                16: { 2: 4, 3: 4, 4: 4, 5: 4 }
+            },
+            "Hardcore": { // Niv 3-6
+                7: { 3: 2, 4: 2, 5: 2, 6: 1 },
+                10: { 3: 3, 4: 3, 5: 2, 6: 2 },
+                16: { 3: 4, 4: 4, 5: 4, 6: 4 }
+            },
+            "Hell": { // Niv 4-7
+                7: { 4: 2, 5: 2, 6: 2, 7: 1 },
+                10: { 4: 3, 5: 3, 6: 3, 7: 1 },
+                16: { 4: 5, 5: 5, 6: 5, 7: 1 }
+            },
+            "Void": { // Niv 7-8
+                7: { 7: 6, 8: 1 },
+                10: { 7: 8, 8: 2 },
+                16: { 7: 10, 8: 6 }
+            }
+        };
+
+        // --- NOUVEAU: Outils pour questions aléatoires ---
+        function randomInt(min, max) { // min et max inclus
+            return Math.floor(Math.random() * (max - min + 1)) + min;
+        }
+
+        // --- Éléments du DOM ---
+        const menuScreen = document.getElementById('menu-screen');
+        const palierSelectScreen = document.getElementById('palier-select-screen');
+        const questionCountScreen = document.getElementById('question-count-screen');
+        const trainingSelectScreen = document.getElementById('training-select-screen');
+        const gameWorld = document.getElementById('game-world');
+        const gameOverScreen = document.getElementById('game-over-screen');
+        const victoryScreen = document.getElementById('victory-screen');
+
+        const campaignBtn = document.getElementById('campaign-btn');
+        const trainingBtn = document.getElementById('training-btn');
+        const gameOverMenuBtn = document.getElementById('game-over-menu-btn');
+        const victoryMenuBtn = document.getElementById('victory-menu-btn');
+
+        const hudLevelLabel = document.getElementById('hud-level-label');
+        const hudLevelValue = document.getElementById('hud-level-value');
+        const hudQuestionCount = document.getElementById('hud-question-count');
+        const hudScoreValue = document.getElementById('hud-score-value');
+        const hudLivesValue = document.getElementById('hud-lives-value');
+        const hudTimerValue = document.getElementById('hud-timer-value');
+        const animatedBg = document.getElementById('animated-bg');
+
+        const questionContainer = document.getElementById('question-container');
+        const questionContent = document.getElementById('question-content');
+        const answerOptionsContainer = document.getElementById('answer-options-container');
+
+        // NOUVEAUX ÉLÉMENTS DOM (Saisie & Clavier)
+        const textInputContainer = document.getElementById('text-input-container');
+        const answerInput = document.getElementById('answer-input');
+        const mathKeyboard = document.getElementById('math-keyboard');
+
+        const jokerButton = document.getElementById('joker-button');
+        const jokerStatus = document.getElementById('joker-status');
+
+        const resultBox = document.getElementById('result-box');
+        const resultTitle = document.getElementById('result-title');
+        const resultAnswer = document.getElementById('result-answer');
+
+        const feedbackOverlay = document.getElementById('feedback-overlay');
+        const levelTransitionOverlay = document.getElementById('level-transition-overlay');
+        const levelTransitionText = document.getElementById('level-transition-text');
+
+        const finalScoreDisplay = document.getElementById('final-score-display');
+        const finalScoreVictoryDisplay = document.getElementById('final-score-victory-display');
+        const finalScoreSummary = document.getElementById('final-score-summary');
+        const victoryScoreSummary = document.getElementById('victory-score-summary');
+        const questionCountTitle = document.getElementById('question-count-title');
+
+
+        // --- NOUVELLE GESTION MATHJAX ---
+        // On crée une promesse qui se résout quand MathJax est 100% prêt
+        const mathJaxReady = new Promise(resolve => {
+            window.MathJax = {
+                tex: {
+                    inlineMath: [['$', '$'], ['\\(', '\\)']],
+                    displayMath: [['$$', '$$'], ['\\[', '\\]']]
+                },
+                svg: {
+                    fontCache: 'global'
+                },
+                startup: {
+                    ready: () => {
+                        console.log('MathJax est prêt.');
+                        // C'est la fonction ready() de MathJax
+                        MathJax.startup.defaultReady();
+                        // On résout la promesse
+                        resolve();
+                    }
+                }
+            };
+        });
+        // --- FIN GESTION MATHJAX ---
+
+
+        // --- Gestion Audio ---
+        // La musique 'videoplayback.mp3' est supposée exister
+        const bgm = new Audio('videoplayback.mp3'); 
+        bgm.loop = true;
+
+        let audioCtx;
+        let userHasInteracted = false;
+
+        function initAudio() {
+            if (!userHasInteracted) {
+                userHasInteracted = true;
+                if (!audioCtx) {
+                    audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+                    console.log("AudioContext initialisé.");
+                }
+            }
+        }
+
+        function playSound(type) {
+            if (!audioCtx) return;
+
+            const oscillator = audioCtx.createOscillator();
+            const gainNode = audioCtx.createGain();
+            oscillator.connect(gainNode);
+            gainNode.connect(audioCtx.destination);
+
+            gainNode.gain.setValueAtTime(0, audioCtx.currentTime);
+            gainNode.gain.linearRampToValueAtTime(0.3, audioCtx.currentTime + 0.01);
+
+            if (type === 'click') {
+                oscillator.type = 'triangle';
+                oscillator.frequency.setValueAtTime(880, audioCtx.currentTime);
+                gainNode.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.1);
+                oscillator.start(audioCtx.currentTime);
+                oscillator.stop(audioCtx.currentTime + 0.1);
+            } else if (type === 'correct') {
+                oscillator.type = 'sine';
+                oscillator.frequency.setValueAtTime(523.25, audioCtx.currentTime);
+                oscillator.frequency.linearRampToValueAtTime(1046.50, audioCtx.currentTime + 0.2);
+                gainNode.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.2);
+                oscillator.start(audioCtx.currentTime);
+                oscillator.stop(audioCtx.currentTime + 0.2);
+            } else if (type === 'wrong') {
+                oscillator.type = 'square';
+                oscillator.frequency.setValueAtTime(220, audioCtx.currentTime);
+                oscillator.frequency.linearRampToValueAtTime(110, audioCtx.currentTime + 0.3);
+                gainNode.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.3);
+                oscillator.start(audioCtx.currentTime);
+                oscillator.stop(audioCtx.currentTime + 0.3);
+            }
+        }
+
+        function playMusic() {
+            if (!userHasInteracted) return;
+            if (bgm.paused) {
+                bgm.play().catch(e => console.warn("Lecture BGM bloquée.", e));
+            }
+        }
+
+        function stopMusic() {
+            bgm.pause();
+            bgm.currentTime = 0;
+        }
+
+        // --- Variables d'état du jeu ---
+        let gameState = {
+            isCampaignMode: false,
+            currentLevel: 1,
+            currentPalier: null,
+            totalQuestions: 0,
+            questionQueue: [],
+            currentQuestionIndex: 0,
+            score: 0,
+            lives: 3,
+            jokerUsedThisLevel: false,
+            usedQuestions: new Set(),
+            sessionQuestions: [],
+            gameTimer: 30,
+            gameTimerInterval: null,
+            isGamePaused: false,
+            levelTransitionShown: {}
+        };
+
+        let currentQuestionObject = null;
+        let currentVisibleScreen = menuScreen;
+        const LIVES_SYMBOLS = ['💔💔💔', '❤️💔💔', '❤️❤️💔', '❤️❤️❤️'];
+
+        // --- Fonctions de Gestion ---
+        function showScreen(screenElement) {
+            if (currentVisibleScreen) {
+                currentVisibleScreen.classList.remove('visible');
+            }
+            setTimeout(() => {
+                screenElement.classList.add('visible');
+                currentVisibleScreen = screenElement;
+            }, 50);
+        }
+        window.showScreen = showScreen;
+
+        function goToMenu() {
+            playSound('click');
+            showScreen(menuScreen);
+        }
+        function goToPalierSelect() {
+            playSound('click');
+            showScreen(palierSelectScreen);
+        }
+        window.goToMenu = goToMenu;
+        window.goToPalierSelect = goToPalierSelect;
+        
+        // Exposer returnToMenu pour le bouton Quitter
+        window.returnToMenu = returnToMenu;
+
+        function shuffleArray(array) {
+            for (let i = array.length - 1; i > 0; i--) {
+                const j = Math.floor(Math.random() * (i + 1));
+                [array[i], array[j]] = [array[j], array[i]];
+            }
+            return array;
+        }
+
+        function updateTheme(level) {
+            let phase = Math.ceil(level / 2);
+            if (phase > 4) phase = 4;
+            if (phase < 1) phase = 1;
+
+            document.body.className = `theme-phase-${phase}`;
+            if (document.body.classList.contains('boss-battle')) {
+                document.body.classList.add(`theme-phase-${phase}`);
+            }
+            animatedBg.style.background = `linear-gradient(135deg, var(--bg-color-1), var(--bg-color-2))`;
+        }
+
+        // --- Génération du Starfield ---
+        function createStars() {
+            function genShadow(count) {
+                let shadow = [];
+                for (let i = 0; i < count; i++) {
+                    shadow.push(`${Math.random() * 2000 - 1000}px ${Math.random() * 2000 - 1000}px #fff`);
+                }
+                return shadow.join(',');
+            }
+            document.getElementById('stars-small').style.boxShadow = genShadow(700);
+            document.getElementById('stars-medium').style.boxShadow = genShadow(200);
+            document.getElementById('stars-large').style.boxShadow = genShadow(100);
+        }
+
+        // --- NOUVEAU: Générateur de Questions Aléatoires ---
+        function generateRandomQuestion(level) {
+            let q = null; // Contiendra l'objet question
+
+            if (level === 1) {
+                // Génère une question "heures en minutes"
+                const h = randomInt(1, 4);
+                const m = [15, 30, 45][randomInt(0, 2)]; // 0.25, 0.5, 0.75
+                // Remplace le point par une virgule pour l'affichage
+                const h_decimal = (h + m / 60).toString().replace('.', ','); 
+                const answer = (h * 60 + m).toString();
+                
+                q = {
+                    level: 1,
+                    question: `Combien font ${h_decimal} heures en minutes ?`,
+                    type: 'input',
+                    options: [],
+                    correctAnswer: answer
+                };
+
+            } else if (level === 2) {
+                // Génère une question "simplifier puissances x^a * x^b"
+                const a = randomInt(2, 7);
+                const b = randomInt(2, 7);
+                const answer = `x^${a + b}`;
+                
+                q = {
+                    level: 2,
+                    question: `Simplifiez $ x^${a} \\times x^${b} $`,
+                    type: 'input',
+                    options: [],
+                    correctAnswer: answer
+                };
+
+            } else if (level === 3) {
+                // Génère une question "augmentation/baisse %"
+                const type = randomInt(0, 1); // 0 = baisse, 1 = augmentation
+                const prix = randomInt(1, 20) * 10; // 10, 20, ... 200
+                const perc = [10, 20, 30, 40, 50][randomInt(0, 4)];
+                
+                if (type === 1) { // Augmentation
+                    const answer = (prix * (1 + perc / 100)).toString();
+                    q = {
+                        level: 3,
+                        question: `Un article à ${prix}€ augmente de ${perc}%. Quel est son nouveau prix ?`,
+                        type: 'input',
+                        options: [],
+                        correctAnswer: answer
+                    };
+                } else { // Baisse
+                    const answer = (prix * (1 - perc / 100)).toString();
+                    q = {
+                        level: 3,
+                        question: `Un article à ${prix}€ baisse de ${perc}%. Quel est son nouveau prix ?`,
+                        type: 'input',
+                        options: [],
+                        correctAnswer: answer
+                    };
+                }
+            } else if (level === 8) {
+                // Génère un arbre de probabilité complet et une question dessus
+                
+                // 1. Générer les probas de base (avec 1 décimale)
+                const pA_val = randomInt(3, 7) / 10; // 0.3 ... 0.7
+                const pAbar_val = (1 - pA_val).toFixed(1);
+
+                const pA_B_val = randomInt(2, 8) / 10; // 0.2 ... 0.8
+                const pA_Bbar_val = (1 - pA_B_val).toFixed(1);
+
+                const pAbar_B_val = randomInt(2, 8) / 10; // 0.2 ... 0.8
+                const pAbar_Bbar_val = (1 - pAbar_B_val).toFixed(1);
+
+                // 2. Calculer les intersections et probas totales (avec 2 décimales)
+                const pAnB_val = (pA_val * pA_B_val).toFixed(2);
+                const pAbar_n_B_val = (pAbar_val * pAbar_B_val).toFixed(2);
+                const pB_val = (parseFloat(pAnB_val) + parseFloat(pAbar_n_B_val)).toFixed(2);
+
+                // 3. Construire le SVG de l'arbre
+                // IMPORTANT: Utiliser \\ pour échapper le \ de \bar en JS
+                const svg = `
+                <svg viewBox="-5 0 110 65" class="w-full h-64 mt-4">
+                    <g stroke="#fff" stroke-width="1" fill="#fff" font-size="5px" font-family="Inter" font-weight="400">
+                        <circle cx="0" cy="30" r="1" fill="#fff"/>
+                        <line x1="0" y1="30" x2="30" y2="15"/>
+                        <text x="15" y="20" fill="#a5f3fc">${pA_val}</text>
+                        <text x="32" y="15">A</text>
+                        <line x1="0" y1="30" x2="30" y2="45"/>
+                        <text x="15" y="42" fill="#a5f3fc">${pAbar_val}</text>
+                        <text x="32" y="45">$\\\\bar{A}$</text>
+                        <line x1="30" y1="15" x2="60" y2="5"/>
+                        <text x="45" y="8" fill="#fcd34d">${pA_B_val}</text>
+                        <text x="62" y="5">B</text>
+                        <line x1="30" y1="15" x2="60" y2="25"/>
+                        <text x="45" y="22" fill="#fcd34d">${pA_Bbar_val}</text>
+                        <text x="62" y="25">$\\\\bar{B}$</text>
+                        <line x1="30" y1="45" x2="60" y2="35"/>
+                        <text x="45" y="38" fill="#fcd34d">${pAbar_B_val}</text>
+                        <text x="62" y="35">B</text>
+                        <line x1="30" y1="45" x2="60" y2="55"/>
+                        <text x="45" y="52" fill="#fcd34d">${pAbar_Bbar_val}</text>
+                        <text x="62" y="55">$\\\\bar{B}$</text>
+                    </g>
+                </svg>`;
+
+                // 4. Choisir un type de question au hasard
+                const questionType = randomInt(1, 4);
+                let questionText = "";
+                let answer = "";
+
+                switch (questionType) {
+                    case 1: // Demander P(A n B)
+                        questionText = `D'après l'arbre, que vaut $ P(A \\cap B) $ ? ${svg}`;
+                        answer = pAnB_val.toString();
+                        break;
+                    case 2: // Demander P(B)
+                        questionText = `D'après l'arbre, que vaut $ P(B) $ ? ${svg}`;
+                        answer = pB_val.toString();
+                        break;
+                    case 3: // Demander P_A(B)
+                        questionText = `D'après l'arbre, que vaut $ P_A(B) $ ? ${svg}`;
+                        answer = pA_B_val.toString();
+                        break;
+                    case 4: // Demander P_Abar(B)
+                        questionText = `D'après l'arbre, que vaut $ P_{\\\\bar{A}}(B) $ ? ${svg}`;
+                        answer = pAbar_B_val.toString();
+                        break;
+                }
+
+                // 5. Générer les options (réponses QCM)
+                let allOptions = [
+                    answer,
+                    pB_val.toString(),
+                    pAnB_val.toString(),
+                    pAbar_n_B_val.toString(),
+                    pA_B_val.toString(),
+                    pAbar_B_val.toString(),
+                    pA_val.toString(),
+                    (randomInt(1, 99) / 100).toFixed(2) // Une valeur aléatoire
+                ];
+                let uniqueOptions = [...new Set(allOptions)]; // Enlève les doublons
+                uniqueOptions = shuffleArray(uniqueOptions);
+                
+                let finalOptions = [answer];
+                for (let opt of uniqueOptions) {
+                    if (opt !== answer && finalOptions.length < 4) {
+                        finalOptions.push(opt);
+                    }
+                }
+
+                // 6. Construire l'objet question
+                q = {
+                    level: 8,
+                    question: questionText,
+                    type: 'qcm',
+                    options: shuffleArray(finalOptions),
+                    correctAnswer: answer
+                };
+            }
+            // On peut ajouter d'autres niveaux (4, 5, etc.) ici
+
+            return q; // Retourne l'objet question ou null
+        }
+
+
+        async function showLevelTransition(text) {
+            gameState.isGamePaused = true;
+            levelTransitionText.textContent = text;
+
+            if (text.toUpperCase() === "BOSS") {
+                levelTransitionText.classList.add('boss');
+                document.body.classList.add('boss-battle');
+            } else {
+                levelTransitionText.classList.remove('boss');
+            }
+
+            levelTransitionOverlay.classList.add('visible');
+            await new Promise(resolve => setTimeout(resolve, 2000));
+            levelTransitionOverlay.classList.remove('visible');
+            gameState.isGamePaused = false; // Reprend le jeu
+        }
+
+        async function showFeedback(type) {
+            gameState.isGamePaused = true;
+            feedbackOverlay.className = `flash-${type}`;
+            await new Promise(resolve => setTimeout(resolve, 400));
+            feedbackOverlay.className = '';
+            // la pause est gérée par la fonction appelante
+        }
+
+        async function showResultBox(type, title, answer) {
+            resultTitle.innerHTML = title; // Utilise innerHTML pour le LaTeX
+            resultAnswer.innerHTML = answer; // Utilise innerHTML pour le LaTeX
+            resultBox.className = type;
+            
+            // On ATTEND que MathJax soit prêt avant de tenter le rendu
+            await mathJaxReady;
+            // Typeset le contenu de la result box
+            if (MathJax?.typesetPromise) {
+                MathJax.typesetPromise([resultBox]).catch(err => console.log('MathJax typeset error:', err));
+            }
+
+            resultBox.classList.add('visible');
+            let duration = (type === 'pass') ? 3000 : 2500;
+            await new Promise(resolve => setTimeout(resolve, duration));
+            resultBox.classList.remove('visible');
+        }
+
+        function generateQuestionQueue(palier, count) {
+            const distribution = PALIER_CONFIG[palier][count];
+            let queue = [];
+            const sortedLevels = Object.keys(distribution).map(Number).sort((a, b) => a - b);
+            for (const level of sortedLevels) {
+                for (let i = 0; i < distribution[level]; i++) {
+                    queue.push(level);
+                }
+            }
+            return queue;
+        }
+
+        // --- Logique de Jeu ---
+
+        async function startGameTraining(level) {
+            playSound('click');
+            gameState.isCampaignMode = false;
+            gameState.currentLevel = level;
+            gameState.score = 0;
+            gameState.lives = 3;
+            gameState.usedQuestions.clear();
+            gameState.sessionQuestions = [];
+            gameState.levelTransitionShown = {};
+
+            updateHUD();
+            playMusic();
+            showScreen(gameWorld);
+
+            await showLevelTransition("NIVEAU " + level);
+            gameState.levelTransitionShown[level] = true;
+            
+            updateTheme(level);
+            loadNextQuestion();
+        }
+
+        async function startGameCampaign() {
+            gameState.isCampaignMode = true;
+            gameState.score = 0;
+            gameState.lives = 3;
+            gameState.jokerUsedThisLevel = false;
+            gameState.currentQuestionIndex = 0;
+            gameState.usedQuestions.clear();
+            gameState.sessionQuestions = [];
+            gameState.questionQueue = generateQuestionQueue(gameState.currentPalier, gameState.totalQuestions);
+            gameState.levelTransitionShown = {};
+
+            updateHUD();
+            playMusic();
+            showScreen(gameWorld);
+
+            await showLevelTransition(gameState.currentPalier.toUpperCase());
+            
+            loadNextQuestion();
+        }
+
+        function updateHUD() {
+            if (gameState.isCampaignMode) {
+                hudLevelLabel.textContent = gameState.currentPalier.toUpperCase();
+                const currentLevelToDisplay = gameState.questionQueue[gameState.currentQuestionIndex] || 1;
+                hudLevelValue.textContent = currentLevelToDisplay;
+                hudQuestionCount.textContent = `${gameState.currentQuestionIndex + 1}/${gameState.totalQuestions}`;
+
+                jokerButton.style.display = 'block';
+                if (gameState.jokerUsedThisLevel) {
+                    jokerStatus.textContent = "UTILISÉ";
+                    jokerStatus.classList.remove('text-amber-400');
+                    jokerStatus.classList.add('text-red-500');
+                    jokerButton.disabled = true;
+                } else {
+                    jokerStatus.textContent = "PRÊT";
+                    jokerStatus.classList.add('text-amber-400');
+                    jokerStatus.classList.remove('text-red-500');
+                    jokerButton.disabled = false;
+                }
+            } else {
+                hudLevelLabel.textContent = "NIVEAU";
+                hudLevelValue.textContent = gameState.currentLevel;
+                hudQuestionCount.textContent = '??/??';
+                jokerButton.style.display = 'none';
+            }
+
+            hudScoreValue.textContent = gameState.score;
+            hudLivesValue.textContent = LIVES_SYMBOLS[gameState.lives];
+        }
+
+        function getPool(level) {
+            
+            // --- NOUVELLE LOGIQUE HYBRIDE ---
+            let generatedQuestion = null;
+            let attempts = 0; // Pour éviter une boucle infinie si on tombe que sur des doublons
+
+            // Essaye de générer une question aléatoire (50% de chance)
+            if (Math.random() < 0.5) {
+                while (attempts < 5 && generatedQuestion === null) {
+                    const q = generateRandomQuestion(level);
+                    // On vérifie que la question générée n'est pas déjà sortie
+                    if (q && !gameState.usedQuestions.has(q.question)) {
+                        generatedQuestion = q;
+                    }
+                    attempts++;
+                }
+            }
+
+            if (generatedQuestion) {
+                // On a trouvé une question aléatoire unique
+                gameState.usedQuestions.add(generatedQuestion.question);
+                gameState.sessionQuestions.push(generatedQuestion);
+                return generatedQuestion;
+            }
+            // --- FIN NOUVELLE LOGIQUE ---
+
+            // Si la génération a échoué ou n'a pas été tentée, utilise la liste statique
+            const fullPool = questionList.filter(item => item.level === level);
+            if (fullPool.length === 0) {
+                console.error(`Aucune question trouvée pour le niveau ${level}!`);
+                return null;
+            }
+
+            let availablePool = fullPool.filter(item => !gameState.usedQuestions.has(item.question));
+            if (availablePool.length === 0) {
+                console.log(`Réinitialisation du pool pour le niveau ${level}`);
+                fullPool.forEach(item => gameState.usedQuestions.delete(item.question));
+                availablePool = [...fullPool];
+            }
+
+            const shuffledPool = shuffleArray(availablePool);
+            const selected = shuffledPool[0];
+
+            if (!selected) {
+                console.error("Erreur de sélection, pool vide après reset ?");
+                return null;
+            }
+
+            gameState.usedQuestions.add(selected.question);
+            gameState.sessionQuestions.push(selected);
+            return selected;
+        }
+
+        async function loadNextQuestion() {
+            if (gameState.isGamePaused) {
+                gameState.isGamePaused = false;
+            }
+
+            if (gameState.isCampaignMode && gameState.currentQuestionIndex >= gameState.totalQuestions) {
+                gameWon();
+                return;
+            }
+
+            const currentLevel = gameState.isCampaignMode ? gameState.questionQueue[gameState.currentQuestionIndex] : gameState.currentLevel;
+
+            if (gameState.isCampaignMode) {
+                let transitionText = "";
+                const prevLevel = (gameState.currentQuestionIndex > 0) ? gameState.questionQueue[gameState.currentQuestionIndex - 1] : -1;
+
+                if (gameState.currentQuestionIndex === gameState.totalQuestions - 1) {
+                    transitionText = "BOSS";
+                } else if (currentLevel !== prevLevel && !gameState.levelTransitionShown[currentLevel]) {
+                    transitionText = "NIVEAU " + currentLevel;
+                }
+
+                if (transitionText) {
+                    await showLevelTransition(transitionText); // Met le jeu en pause
+                    gameState.levelTransitionShown[currentLevel] = true;
+                    if (currentLevel !== prevLevel) {
+                        gameState.jokerUsedThisLevel = false;
+                    }
+                }
+            }
+
+            updateTheme(currentLevel);
+            updateHUD();
+
+            loadQuestion(currentLevel);
+        }
+
+        async function loadQuestion(level) {
+            currentQuestionObject = getPool(level);
+
+            if (!currentQuestionObject) {
+                console.error("Erreur critique: getPool n'a rien retourné (Niveau " + level + ").");
+                if (gameState.isCampaignMode) gameState.currentQuestionIndex++;
+                if (gameState.lives > 0) setTimeout(loadNextQuestion, 100);
+                return;
+            }
+
+            questionContent.innerHTML = currentQuestionObject.question;
+            
+            // NOUVELLE LOGIQUE: QCM ou Saisie ?
+            const questionType = currentQuestionObject.type || 'qcm'; // Par défaut, QCM
+
+            if (questionType === 'input') {
+                // Mode Saisie
+                answerOptionsContainer.innerHTML = ''; // Vide les options QCM
+                textInputContainer.classList.remove('hidden'); // Affiche la barre de saisie
+                answerInput.value = '';
+                answerInput.disabled = false;
+                setTimeout(() => answerInput.focus(), 100); // Focus sur l'input
+            } else {
+                // Mode QCM
+                textInputContainer.classList.add('hidden'); // Cache la barre de saisie
+                answerOptionsContainer.innerHTML = ''; // Vide les anciennes options
+                
+                const shuffledOptions = shuffleArray([...currentQuestionObject.options]);
+                shuffledOptions.forEach(optionText => {
+                    const button = document.createElement('button');
+                    button.className = 'answer-btn';
+                    button.innerHTML = optionText; // innerHTML pour le LaTeX
+                    button.dataset.rawLatex = optionText; // Stocke la chaîne LaTeX originale
+                    button.onclick = () => checkQCMAnswer(button); // Note: checkQCMAnswer
+                    answerOptionsContainer.appendChild(button);
+                });
+            }
+
+            // On ATTEND que MathJax soit prêt
+            await mathJaxReady;
+            // Demander à MathJax de rendre le nouveau contenu (question + boutons)
+            if (MathJax?.typesetPromise) {
+                MathJax.typesetPromise([questionContainer]).catch(err => console.log('MathJax typeset error:', err));
+            }
+
+            questionContainer.classList.add('visible');
+            startTimer(level);
+        }
+
+
+        function startTimer(level) {
+            if (gameState.gameTimerInterval) clearInterval(gameState.gameTimerInterval);
+
+            let baseTime = 40 - (level * 2); // Un peu plus de temps pour les maths
+            if (baseTime < 15) baseTime = 15;
+            gameState.gameTimer = baseTime;
+
+            hudTimerValue.textContent = gameState.gameTimer;
+            hudTimerValue.classList.remove('text-red-500', 'font-bold');
+
+            gameState.gameTimerInterval = setInterval(() => {
+                if (gameState.isGamePaused) return;
+
+                gameState.gameTimer--;
+                hudTimerValue.textContent = gameState.gameTimer;
+
+                if (gameState.gameTimer <= 5) {
+                    hudTimerValue.classList.add('text-red-500', 'font-bold');
+                }
+
+                if (gameState.gameTimer <= 0) {
+                    clearInterval(gameState.gameTimerInterval);
+                    handleIncorrectAnswer('timeout');
+                }
+            }, 1000);
+        }
+
+        // Renommée de checkAnswer -> checkQCMAnswer
+        function checkQCMAnswer(buttonElement) {
+            if (gameState.isGamePaused) return;
+
+            clearInterval(gameState.gameTimerInterval);
+            gameState.isGamePaused = true;
+
+            // Utilise l'attribut data pour une comparaison fiable
+            const selectedLatex = buttonElement.dataset.rawLatex;
+            const correctLatex = currentQuestionObject.correctAnswer;
+            
+            const isCorrect = (selectedLatex === correctLatex);
+
+            document.querySelectorAll('.answer-btn').forEach(btn => {
+                btn.disabled = true;
+                // Compare avec l'attribut data
+                if (btn.dataset.rawLatex === correctLatex) {
+                    btn.classList.add('correct');
+                } else if (btn === buttonElement) {
+                    btn.classList.add('wrong');
+                }
+            });
+
+            if (isCorrect) {
+                handleCorrectAnswer();
+            } else {
+                handleIncorrectAnswer('wrong_choice');
+            }
+        }
+
+        // NOUVELLE FONCTION pour valider la saisie
+        function checkInputAnswer() {
+            if (gameState.isGamePaused) return;
+
+            clearInterval(gameState.gameTimerInterval);
+            gameState.isGamePaused = true;
+            answerInput.disabled = true;
+
+            // Normalise la réponse : enlève espaces, met en minuscule, remplace virgule par point
+            const userAnswer = answerInput.value
+                .trim()
+                .toLowerCase()
+                .replace(',', '.')
+                .replace('€', ''); // Enlève le symbole euro
+
+            // Normalise la bonne réponse
+            const correctAnswer = currentQuestionObject.correctAnswer
+                .trim()
+                .toLowerCase()
+                .replace(',', '.');
+            
+            // Vérification (simple pour l'instant)
+            const isCorrect = (userAnswer === correctAnswer);
+
+            if (isCorrect) {
+                handleCorrectAnswer();
+            } else {
+                handleIncorrectAnswer('wrong_choice');
+            }
+        }
+
+        async function handleCorrectAnswer() {
+            gameState.isGamePaused = true;
+            playSound('correct');
+            clearInterval(gameState.gameTimerInterval);
+
+            const currentLevel = gameState.isCampaignMode ? gameState.questionQueue[gameState.currentQuestionIndex] : gameState.currentLevel;
+            let pointsWon = 10 * currentLevel;
+            gameState.score += Math.round(pointsWon);
+
+            questionContainer.classList.remove('visible');
+            textInputContainer.classList.add('hidden'); // Cache la saisie
+            await showFeedback('correct');
+
+            // La réponse est maintenant au bon format (soit LaTeX, soit texte simple)
+            const answer = `La réponse était bien : ${currentQuestionObject.correctAnswer}`;
+            await showResultBox('correct', "BONNE RÉPONSE", answer);
+
+            if (gameState.isCampaignMode) gameState.currentQuestionIndex++;
+            loadNextQuestion();
+        }
+
+        async function handleIncorrectAnswer(reason) {
+            gameState.isGamePaused = true;
+            playSound('wrong');
+            clearInterval(gameState.gameTimerInterval);
+
+            gameState.lives--;
+
+            questionContainer.classList.remove('visible');
+            textInputContainer.classList.add('hidden'); // Cache la saisie
+            await showFeedback('wrong');
+
+            const title = (reason === 'timeout') ? "TEMPS ÉCOULÉ" : "MAUVAISE RÉPONSE";
+            const answer = `La bonne réponse était : ${currentQuestionObject.correctAnswer}`;
+            await showResultBox('wrong', title, answer);
+
+            if (gameState.lives <= 0) {
+                setTimeout(gameOver, 500);
+            } else {
+                // On ne recharge pas la même question, on passe à la suite
+                // (Sinon on est bloqué si on ne sait pas)
+                if (gameState.isCampaignMode) gameState.currentQuestionIndex++;
+                loadNextQuestion();
+            }
+        }
+
+        function returnToMenu() {
+            playSound('click');
+            if (gameState.gameTimerInterval) clearInterval(gameState.gameTimerInterval);
+            gameState.isGamePaused = false;
+            document.body.classList.remove('boss-battle');
+
+            stopMusic(); // Arrêter la musique en quittant
+            showScreen(menuScreen);
+        }
+
+        function gameWon() {
+            stopMusic();
+            document.body.classList.remove('boss-battle');
+            finalScoreVictoryDisplay.textContent = gameState.score;
+            displaySummary(victoryScoreSummary);
+            showScreen(victoryScreen);
+        }
+
+        function gameOver() {
+            stopMusic();
+            document.body.classList.remove('boss-battle');
+            finalScoreDisplay.textContent = gameState.score;
+            displaySummary(finalScoreSummary);
+            showScreen(gameOverScreen);
+        }
+
+        async function displaySummary(containerElement) {
+            const listHeader = containerElement.querySelector('h3');
+            containerElement.querySelectorAll('.summary-item').forEach(item => item.remove());
+
+            if (gameState.sessionQuestions.length === 0) {
+                listHeader.insertAdjacentHTML('afterend', '<p class="summary-item text-gray-400">Aucune question n\'a été rencontrée.</p>');
+                return;
+            }
+
+            let summaryHTML = '';
+            gameState.sessionQuestions.forEach(qObj => {
+                summaryHTML += `
+                    <div class="summary-item py-2 border-b border-gray-800 last:border-b-0">
+                        <strong class="text-white">${qObj.question}</strong>:
+                        <span class="text-gray-300">${qObj.correctAnswer}</span>
+                    </div>
+                `;
+            });
+            listHeader.insertAdjacentHTML('afterend', summaryHTML);
+            
+            // On ATTEND que MathJax soit prêt
+            await mathJaxReady;
+            // Typeset le résumé
+             if (MathJax?.typesetPromise) {
+                MathJax.typesetPromise([containerElement]).catch(err => console.log('MathJax typeset error:', err));
+            }
+        }
+
+        document.addEventListener('DOMContentLoaded', () => {
+
+            // Correction de la mesure principale pour 10pi/3
+            const q = questionList.find(item => item.question.includes("10\\pi}{3"));
+            if (q) {
+                q.correctAnswer = "$ -\\frac{2\\pi}{3} $";
+            }
+            
+            createStars();
+
+            // --- Attachements des événements ---
+
+            trainingSelectScreen.querySelectorAll('.menu-btn[data-level]').forEach(btn => {
+                btn.onclick = () => startGameTraining(parseInt(btn.dataset.level));
+            });
+
+            campaignBtn.onclick = () => {
+                playSound('click');
+                showScreen(palierSelectScreen);
+            };
+
+            trainingBtn.onclick = () => {
+                playSound('click');
+                showScreen(trainingSelectScreen);
+            };
+
+            palierSelectScreen.querySelectorAll('.menu-btn[data-palier]').forEach(btn => {
+                btn.onclick = () => {
+                    playSound('click');
+                    gameState.currentPalier = btn.dataset.palier;
+                    questionCountTitle.textContent = `Palier ${gameState.currentPalier}`;
+                    showScreen(questionCountScreen);
+                }
+            });
+
+            questionCountScreen.querySelectorAll('.menu-btn[data-count]').forEach(btn => {
+                btn.onclick = () => {
+                    playSound('click');
+                    gameState.totalQuestions = parseInt(btn.dataset.count);
+                    startGameCampaign();
+                }
+            });
+
+            jokerButton.onclick = async () => {
+                if (gameState.jokerUsedThisLevel || !gameState.isCampaignMode || gameState.isGamePaused) return;
+
+                playSound('click');
+                gameState.isGamePaused = true;
+                clearInterval(gameState.gameTimerInterval);
+                textInputContainer.classList.add('hidden'); // Cache la saisie
+                answerInput.disabled = true;
+
+                gameState.jokerUsedThisLevel = true;
+                updateHUD();
+
+                questionContainer.classList.remove('visible');
+
+                const title = "JOKER";
+                const answer = `La bonne réponse était : ${currentQuestionObject.correctAnswer}`;
+                await showResultBox('pass', title, answer);
+                
+                // On passe à la question suivante
+                if (gameState.isCampaignMode) gameState.currentQuestionIndex++;
+                loadNextQuestion();
+            };
+
+            gameOverMenuBtn.onclick = returnToMenu;
+            victoryMenuBtn.onclick = returnToMenu;
+
+            // NOUVEAUX ÉVÉNEMENTS (Saisie & Clavier)
+            answerInput.addEventListener('keydown', (e) => {
+                if (e.key === 'Enter' && !answerInput.disabled) {
+                    checkInputAnswer();
+                }
+            });
+
+            mathKeyboard.querySelectorAll('.math-key-btn').forEach(btn => {
+                btn.addEventListener('click', () => {
+                    const char = btn.textContent;
+                    // Insère le caractère là où est le curseur
+                    const start = answerInput.selectionStart;
+                    const end = answerInput.selectionEnd;
+                    const text = answerInput.value;
+                    answerInput.value = text.substring(0, start) + char + text.substring(end);
+                    answerInput.selectionStart = answerInput.selectionEnd = start + char.length;
+                    answerInput.focus();
+                });
+            });
+
+
+            // Initialisation de l'audio
+            document.querySelectorAll('button').forEach(btn => {
+                btn.addEventListener('click', () => {
+                    initAudio();
+                    // On ne joue la musique qu'en démarrant une partie
+                }, { once: true });
+            });
+
+            // --- Démarrage ---
+            showScreen(menuScreen);
+            updateTheme(1);
+        });
+
+    </script>
+</body>
+
+</html>
